@@ -1,0 +1,48 @@
+{
+  "name": "lisa-bot",
+  "version": "1.0.0",
+  "description": "Lisa - A playful, tsundere AI Discord bot with persistent memory. Runs on EndeavourOS & Termux.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "lint": "eslint src --ext .ts",
+    "db:init": "tsx src/utils/init-db.ts",
+    "db:migrate": "tsx src/utils/migrate.ts"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "ai",
+    "llm",
+    "ollama",
+    "memory",
+    "termux",
+    "linux"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "better-sqlite3": "^13.0.3",
+    "discord.js": "^14.15.3",
+    "dotenv": "^16.4.5",
+    "groq-sdk": "^1.6.0",
+    "ollama": "^0.5.8",
+    "pino": "^9.3.2",
+    "pino-pretty": "^11.2.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.10",
+    "@types/node": "^22.5.0",
+    "eslint": "^9.9.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "allowScripts": {
+    "better-sqlite3@13.0.3": true
+  }
+}
