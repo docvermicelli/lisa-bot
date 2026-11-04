@@ -61,7 +61,9 @@ async function processQueue(): Promise<void> {
     try {
       await handleMessage(queued.message);
     } catch (error) {
-      log.error({ error, messageId: queued.message.id }, 'Failed to handle message');
+      const errMsg = error instanceof Error ? error.message : String(error);
+      const errStack = error instanceof Error ? error.stack : undefined;
+      log.error({ error: errMsg, stack: errStack, messageId: queued.message.id }, 'Failed to handle message');
     }
     await new Promise(resolve => setTimeout(resolve, PROCESSING_DELAY));
   }
@@ -181,7 +183,9 @@ async function handleMessage(message: Message): Promise<void> {
 
     log.info({ userId, username, responseLength: botResponse.length }, 'Message sent');
   } catch (error) {
-    log.error({ error, userId }, 'Failed to generate response');
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const errStack = error instanceof Error ? error.stack : undefined;
+    log.error({ error: errMsg, stack: errStack, userId }, 'Failed to generate response');
 
     const fallbackResponses = [
       "Ugh, my brain just froze... 😵 Can you say that again?",
