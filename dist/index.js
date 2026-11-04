@@ -6,7 +6,6 @@ const logger_1 = require("./utils/logger");
 const init_db_1 = require("./utils/init-db");
 const ready_1 = require("./handlers/ready");
 const message_1 = require("./handlers/message");
-const commands_1 = require("./handlers/commands");
 const memory_1 = require("./services/memory");
 const log = logger_1.logger.child({ module: 'main' });
 const client = new discord_js_1.Client({
@@ -31,11 +30,6 @@ client.on('messageCreate', async (message) => {
     if (!(0, message_1.shouldRespond)(message))
         return;
     await (0, message_1.queueMessage)(message);
-});
-client.on('interactionCreate', async (interaction) => {
-    if (interaction.isChatInputCommand()) {
-        await (0, commands_1.handleSlashCommand)(interaction);
-    }
 });
 process.on('SIGINT', async () => {
     log.info('Received SIGINT, shutting down gracefully...');
@@ -74,7 +68,7 @@ async function shutdown() {
 async function main() {
     try {
         log.info('Starting Lisa bot...');
-        log.info({ version: '1.1.0', node: process.version }, 'Environment');
+        log.info({ version: '1.2.0', node: process.version }, 'Environment');
         await (0, init_db_1.initializeDatabase)();
         log.info('Database initialized');
         (0, config_1.validateConfig)();

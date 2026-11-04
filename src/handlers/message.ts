@@ -1,7 +1,6 @@
 import {
   Message,
   TextChannel,
-  DMChannel,
   ChannelType,
   User,
 } from 'discord.js';
@@ -14,6 +13,8 @@ import { personalityService } from '../services/personality';
 import type { ConversationMessage, OllamaMessage, GroqMessage } from '../types';
 
 const log = logger.child({ module: 'handler:message' });
+
+const AUTHORIZED_USER_ID = config.discord.authorizedUserId;
 
 interface QueuedMessage {
   message: Message;
@@ -35,6 +36,11 @@ function shouldRespond(message: Message): boolean {
   if (message.channel.type === ChannelType.GuildText) {
     if (message.guildId !== config.discord.guildId) return false;
     if (message.channelId !== config.discord.channelId) return false;
+  }
+
+  // ONLY respond to authorized user
+  if (message.author.id !== AUTHORIZED_USER_ID) {
+    return false;
   }
 
   const hasMention = message.mentions.has(config.discord.clientId);
@@ -96,30 +102,14 @@ async function handleMessage(message: Message): Promise<void> {
     displayName: message.member?.displayName || username,
   });
 
-  // Add relationship points
-  let pointsToAdd = config.relationship.pointsPerMessage;
-  const hasMention = message.mentions.has(config.discord.clientId);
-  if (hasMention) {
-    pointsToAdd += config.relationship.pointsPerMention;
-  }
-  if (content.length >= config.relationship.longMessageThreshold) {
-    pointsToAdd += config.relationship.pointsPerLongMessage;
-  }
-
-  const relationshipUpdate = await memoryService.addRelationshipPoints(userId, pointsToAdd);
-  if (relationshipUpdate.leveledUp) {
-    log.info({ userId, newLevel: relationshipUpdate.level, points: relationshipUpdate.points }, 'Relationship leveled up!');
-  }
-
   const [profile, history, memories] = await Promise.all([
     memoryService.getUserProfile(userId),
     memoryService.getConversationHistory(userId, channelId, config.memory.maxConversationHistory),
-    memoryService.getMemories(userId, 5),
+    memoryService.getMemories(userId, 10),
   ]);
 
   const systemPrompt = personalityService.getSystemPrompt(username, profile || undefined);
 
-  // Build messages array (compatible with both Ollama and Groq)
   const messages: (OllamaMessage | GroqMessage)[] = [
     { role: 'system', content: systemPrompt },
   ];
@@ -128,7 +118,7 @@ async function handleMessage(message: Message): Promise<void> {
     const memoryContext = memories.map(m => `[Memory: ${m.key} = ${m.value}]`).join('\n');
     messages.push({
       role: 'system',
-      content: `RELEVANT MEMORIES ABOUT ${username}:\n${memoryContext}\n\nUse these naturally in conversation. Don't explicitly say "I remember" - just know it.`
+      content: `RELEVANT MEMORIES ABOUT SHOKAT:\n${memoryContext}\n\nUse these naturally in conversation. Don't explicitly say "I remember" - just know it. You're his Lisa. You know him.`
     });
   }
 
@@ -145,7 +135,6 @@ async function handleMessage(message: Message): Promise<void> {
     try {
       await (message.channel as TextChannel).sendTyping();
     } catch {
-      // Ignore typing errors
     }
   }
 
@@ -153,12 +142,10 @@ async function handleMessage(message: Message): Promise<void> {
     let botResponse: string;
 
     if (config.groq.enabled && groqService.isEnabled()) {
-      // Use Groq (fast, free cloud API)
       const response = await groqService.chat(messages as GroqMessage[]);
       botResponse = response.choices[0]?.message?.content?.trim() || '';
       log.debug({ provider: 'groq', model: response.model }, 'Groq response received');
     } else {
-      // Use Ollama (local)
       const response = await ollamaService.chat(messages as OllamaMessage[]);
       botResponse = response.message.content.trim();
       log.debug({ provider: 'ollama', model: response.model }, 'Ollama response received');

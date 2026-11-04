@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, ActivityType, REST, Routes, SlashCommandBuilder } from 'discord.js';
+import { Client, ActivityType } from 'discord.js';
 import { config } from '../config';
 import { logger } from '../utils/logger';
 import { ollamaService } from '../services/ollama';
@@ -7,37 +7,8 @@ import { personalityService } from '../services/personality';
 
 const log = logger.child({ module: 'handler:ready' });
 
-// Define slash commands
-const commands = [
-  new SlashCommandBuilder()
-    .setName('lisa')
-    .setDescription('Check your relationship status with Lisa')
-    .toJSON(),
-];
-
-async function registerCommands(client: Client): Promise<void> {
-  const rest = new REST({ version: '10' }).setToken(config.discord.token);
-
-  try {
-    log.info('Registering slash commands...');
-
-    // Register for specific guild (faster for testing)
-    await rest.put(
-      Routes.applicationGuildCommands(config.discord.clientId, config.discord.guildId),
-      { body: commands }
-    );
-
-    log.info('Slash commands registered successfully!');
-  } catch (error) {
-    log.error({ error }, 'Failed to register slash commands');
-  }
-}
-
 export async function handleReady(client: Client): Promise<void> {
   log.info({ username: client.user?.tag }, 'Bot logged in');
-
-  // Register slash commands
-  await registerCommands(client);
 
   const healthOk = await ollamaService.checkHealth();
   if (!healthOk) {
@@ -73,7 +44,7 @@ export async function handleReady(client: Client): Promise<void> {
 
   client.user?.setPresence({
     activities: [{
-      name: `with ${config.personality.name} 💕`,
+      name: `with Shokat 💕`,
       type: ActivityType.Playing,
     }],
     status: 'online',

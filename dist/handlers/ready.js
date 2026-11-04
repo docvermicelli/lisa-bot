@@ -11,29 +11,8 @@ const ollama_1 = require("../services/ollama");
 const memory_1 = require("../services/memory");
 const personality_1 = require("../services/personality");
 const log = logger_1.logger.child({ module: 'handler:ready' });
-// Define slash commands
-const commands = [
-    new discord_js_1.SlashCommandBuilder()
-        .setName('lisa')
-        .setDescription('Check your relationship status with Lisa')
-        .toJSON(),
-];
-async function registerCommands(client) {
-    const rest = new discord_js_1.REST({ version: '10' }).setToken(config_1.config.discord.token);
-    try {
-        log.info('Registering slash commands...');
-        // Register for specific guild (faster for testing)
-        await rest.put(discord_js_1.Routes.applicationGuildCommands(config_1.config.discord.clientId, config_1.config.discord.guildId), { body: commands });
-        log.info('Slash commands registered successfully!');
-    }
-    catch (error) {
-        log.error({ error }, 'Failed to register slash commands');
-    }
-}
 async function handleReady(client) {
     log.info({ username: client.user?.tag }, 'Bot logged in');
-    // Register slash commands
-    await registerCommands(client);
     const healthOk = await ollama_1.ollamaService.checkHealth();
     if (!healthOk) {
         log.warn('Ollama not reachable - bot will still run but AI responses will fail');
@@ -66,7 +45,7 @@ async function handleReady(client) {
     }
     client.user?.setPresence({
         activities: [{
-                name: `with ${config_1.config.personality.name} 💕`,
+                name: `with Shokat 💕`,
                 type: discord_js_1.ActivityType.Playing,
             }],
         status: 'online',

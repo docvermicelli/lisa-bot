@@ -4,6 +4,7 @@ export interface BotConfig {
     clientId: string;
     guildId: string;
     channelId: string;
+    authorizedUserId: string;
   };
   ollama: {
     host: string;
@@ -31,17 +32,6 @@ export interface BotConfig {
     name: string;
     type: PersonalityType;
     language: string;
-  };
-  relationship: {
-    enabled: boolean;
-    pointsPerMessage: number;
-    pointsPerMention: number;
-    pointsPerLongMessage: number;
-    longMessageThreshold: number;
-    strangerMaxPoints: number;
-    acquaintanceMaxPoints: number;
-    friendsMaxPoints: number;
-    closeFriendsMaxPoints: number;
   };
   logging: {
     level: string;
@@ -130,7 +120,7 @@ export interface UserProfile {
   messageCount: number;
   favoriteTopics: string[];
   personalityNotes: string;
-  relationship: RelationshipMeter;
+  relationship?: RelationshipMeter;
 }
 
 export interface OllamaChatRequest {

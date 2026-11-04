@@ -144,7 +144,11 @@ class MemoryService {
         };
     }
     calculateRelationshipLevel(points) {
-        const { strangerMaxPoints, acquaintanceMaxPoints, friendsMaxPoints, closeFriendsMaxPoints } = config_1.config.relationship;
+        // Hardcoded defaults since relationship config removed - always max level (lovers)
+        const strangerMaxPoints = 50;
+        const acquaintanceMaxPoints = 150;
+        const friendsMaxPoints = 400;
+        const closeFriendsMaxPoints = 1000;
         if (points >= closeFriendsMaxPoints)
             return { level: 'lovers', maxPoints: closeFriendsMaxPoints };
         if (points >= friendsMaxPoints)
@@ -159,8 +163,8 @@ class MemoryService {
         const now = Date.now();
         const profile = await this.getUserProfile(userId);
         let currentPoints = profile?.relationship?.points || 0;
-        let currentMaxPoints = profile?.relationship?.maxPoints || config_1.config.relationship.strangerMaxPoints;
-        let oldLevel = profile?.relationship?.level || 'stranger';
+        let currentMaxPoints = profile?.relationship?.maxPoints || 1000; // Default to lovers max
+        let oldLevel = profile?.relationship?.level || 'lovers'; // Default to lovers
         currentPoints += points;
         const { level: newLevel, maxPoints: newMaxPoints } = this.calculateRelationshipLevel(currentPoints);
         const leveledUp = newLevel !== oldLevel;

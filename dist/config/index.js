@@ -44,6 +44,7 @@ exports.config = {
         clientId: getEnv('DISCORD_CLIENT_ID'),
         guildId: getEnv('DISCORD_GUILD_ID'),
         channelId: getEnv('DISCORD_CHANNEL_ID'),
+        authorizedUserId: getEnv('AUTHORIZED_USER_ID', '923927815685034024'),
     },
     ollama: {
         host: getEnv('OLLAMA_HOST', 'http://localhost:11434'),
@@ -62,9 +63,8 @@ exports.config = {
     },
     memory: {
         dbPath: getEnv('MEMORY_DB_PATH', './data/lisa-memory.db'),
-        maxConversationHistory: getEnvNumber('MAX_CONVERSATION_HISTORY', 50),
-        maxMemoryEntries: getEnvNumber('MAX_MEMORY_ENTRIES', 1000),
-        // Turso (libSQL) remote database - optional
+        maxConversationHistory: getEnvNumber('MAX_CONVERSATION_HISTORY', 100),
+        maxMemoryEntries: getEnvNumber('MAX_MEMORY_ENTRIES', 2000),
         tursoUrl: process.env.TURSO_DATABASE_URL || '',
         tursoAuthToken: process.env.TURSO_AUTH_TOKEN || '',
     },
@@ -73,23 +73,12 @@ exports.config = {
         type: getEnv('BOT_PERSONALITY', 'mature'),
         language: getEnv('RESPONSE_LANGUAGE', 'en'),
     },
-    relationship: {
-        enabled: getEnvBoolean('RELATIONSHIP_ENABLED', true),
-        pointsPerMessage: getEnvNumber('RELATIONSHIP_POINTS_PER_MESSAGE', 2),
-        pointsPerMention: getEnvNumber('RELATIONSHIP_POINTS_PER_MENTION', 5),
-        pointsPerLongMessage: getEnvNumber('RELATIONSHIP_POINTS_PER_LONG_MESSAGE', 3),
-        longMessageThreshold: getEnvNumber('RELATIONSHIP_LONG_MESSAGE_THRESHOLD', 100),
-        strangerMaxPoints: getEnvNumber('RELATIONSHIP_STRANGER_MAX', 50),
-        acquaintanceMaxPoints: getEnvNumber('RELATIONSHIP_ACQUAINTANCE_MAX', 150),
-        friendsMaxPoints: getEnvNumber('RELATIONSHIP_FRIENDS_MAX', 400),
-        closeFriendsMaxPoints: getEnvNumber('RELATIONSHIP_CLOSE_FRIENDS_MAX', 1000),
-    },
     logging: {
         level: getEnv('LOG_LEVEL', 'info'),
         pretty: getEnvBoolean('LOG_PRETTY', true),
     },
     performance: {
-        messageCacheSize: getEnvNumber('MESSAGE_CACHE_SIZE', 100),
+        messageCacheSize: getEnvNumber('MESSAGE_CACHE_SIZE', 200),
         typingIndicator: getEnvBoolean('TYPING_INDICATOR', true),
     },
 };
@@ -98,6 +87,7 @@ function validateConfig() {
         'DISCORD_TOKEN',
         'DISCORD_GUILD_ID',
         'DISCORD_CHANNEL_ID',
+        'AUTHORIZED_USER_ID',
     ];
     for (const key of required) {
         if (!process.env[key]) {

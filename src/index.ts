@@ -1,12 +1,10 @@
-import { Client, GatewayIntentBits, Partials, InteractionType } from 'discord.js';
+import { Client, GatewayIntentBits, Partials } from 'discord.js';
 import { config, validateConfig } from './config';
 import { logger } from './utils/logger';
 import { initializeDatabase } from './utils/init-db';
 import { handleReady, handleDisconnect, handleReconnecting, handleError } from './handlers/ready';
 import { queueMessage, shouldRespond } from './handlers/message';
-import { handleSlashCommand } from './handlers/commands';
 import { memoryService } from './services/memory';
-import { ollamaService } from './services/ollama';
 
 const log = logger.child({ module: 'main' });
 
@@ -35,12 +33,6 @@ client.on('error', handleError);
 client.on('messageCreate', async (message) => {
   if (!shouldRespond(message)) return;
   await queueMessage(message);
-});
-
-client.on('interactionCreate', async (interaction) => {
-  if (interaction.isChatInputCommand()) {
-    await handleSlashCommand(interaction);
-  }
 });
 
 process.on('SIGINT', async () => {
@@ -86,7 +78,7 @@ async function shutdown(): Promise<void> {
 async function main(): Promise<void> {
   try {
     log.info('Starting Lisa bot...');
-    log.info({ version: '1.1.0', node: process.version }, 'Environment');
+    log.info({ version: '1.2.0', node: process.version }, 'Environment');
 
     await initializeDatabase();
     log.info('Database initialized');
