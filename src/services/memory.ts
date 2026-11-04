@@ -1,5 +1,3 @@
-import { createClient, Client } from '@libsql/client';
-import { createClient as createHttpClient, Client as HttpClient } from '@libsql/client/http';
 import { config } from '../config';
 import { logger } from '../utils/logger';
 import type {
@@ -12,19 +10,21 @@ import type {
 
 const log = logger.child({ module: 'memory' });
 
-let client: Client | HttpClient | null = null;
+let client: any = null;
 
-function getClient(): Client | HttpClient {
+async function getClient() {
   if (!client) {
     if (config.memory.tursoUrl && config.memory.tursoAuthToken) {
       // Remote Turso - use HTTP client (no native binary needed, works on all platforms including Termux ARM64)
-      client = createHttpClient({
+      const { createClient } = await import('@libsql/client/http');
+      client = createClient({
         url: config.memory.tursoUrl,
         authToken: config.memory.tursoAuthToken,
       });
       log.info('Connected to Turso database via HTTP');
     } else {
-      // Local SQLite file
+      // Local SQLite file - use dynamic import to avoid loading native binary on unsupported platforms
+      const { createClient } = await import('@libsql/client');
       client = createClient({
         url: `file:${config.memory.dbPath}`,
       });
@@ -77,7 +77,7 @@ export class MemoryService {
   }
 
   async addConversation(message: Omit<ConversationMessage, 'id'>): Promise<number> {
-    const db = getClient();
+    const db = await getClient();
     const result = await db.execute(
       `INSERT INTO conversations (user_id, username, content, role, timestamp, channel_id) VALUES (?, ?, ?, ?, ?, ?)`,
       [message.userId, message.username, message.content, message.role, message.timestamp, message.channelId]
@@ -90,26 +90,26 @@ export class MemoryService {
     channelId: string,
     limit: number = config.memory.maxConversationHistory
   ): Promise<ConversationMessage[]> {
-    const db = getClient();
+    const db = await getClient();
     const result = await db.execute(
       `SELECT id, user_id as userId, username, content, role, timestamp, channel_id as channelId FROM conversations WHERE user_id = ? AND channel_id = ? ORDER BY timestamp DESC LIMIT ?`,
       [userId, channelId, limit]
     );
-    return result.rows.map(r => rowToConversationMessage(r as Record<string, unknown>)).reverse();
+    return result.rows.map((r: Record<string, unknown>) => rowToConversationMessage(r)).reverse();
   }
 
   async getRecentConversations(channelId: string, limit: number = 20): Promise<ConversationMessage[]> {
-    const db = getClient();
+    const db = await getClient();
     const result = await db.execute(
       `SELECT id, user_id as userId, username, content, role, timestamp, channel_id as channelId FROM conversations WHERE channel_id = ? ORDER BY timestamp DESC LIMIT ?`,
       [channelId, limit]
     );
-    return result.rows.map(r => rowToConversationMessage(r as Record<string, unknown>)).reverse();
+    return result.rows.map((r: Record<string, unknown>) => rowToConversationMessage(r)).reverse();
   }
 
   async storeMemory(userId: string, key: string, value: string, importance: number = 5): Promise<void> {
     const now = Date.now();
-    const db = getClient();
+    const db = await getClient();
     await db.execute(
       `INSERT INTO memories (user_id, key, value, importance, created_at, updated_at, access_count) VALUES (?, ?, ?, ?, ?, ?, 0) ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value, importance = CASE WHEN excluded.importance > memories.importance THEN excluded.importance ELSE memories.importance END, updated_at = excluded.updated_at, access_count = memories.access_count + 1`,
       [userId, key, value, Math.min(10, Math.max(1, importance)), now, now]
@@ -118,16 +118,16 @@ export class MemoryService {
   }
 
   async getMemories(userId: string, limit: number = 10): Promise<MemoryEntry[]> {
-    const db = getClient();
+    const db = await getClient();
     const result = await db.execute(
       `SELECT id, user_id as userId, key, value, importance, created_at as createdAt, updated_at as updatedAt, access_count as accessCount FROM memories WHERE user_id = ? ORDER BY importance DESC, updated_at DESC LIMIT ?`,
       [userId, limit]
     );
-    return result.rows.map(r => rowToMemoryEntry(r as Record<string, unknown>));
+    return result.rows.map((r: Record<string, unknown>) => rowToMemoryEntry(r));
   }
 
   async getMemory(userId: string, key: string): Promise<MemoryEntry | null> {
-    const db = getClient();
+    const db = await getClient();
     const result = await db.execute(
       `SELECT id, user_id as userId, key, value, importance, created_at as createdAt, updated_at as updatedAt, access_count as accessCount FROM memories WHERE user_id = ? AND key = ?`,
       [userId, key]
@@ -141,19 +141,19 @@ export class MemoryService {
   }
 
   async searchMemories(userId: string, query: string, limit: number = 5): Promise<MemoryEntry[]> {
-    const db = getClient();
+    const db = await getClient();
     const searchTerm = `%${query}%`;
     const result = await db.execute(
       `SELECT id, user_id as userId, key, value, importance, created_at as createdAt, updated_at as updatedAt, access_count as accessCount FROM memories WHERE user_id = ? AND (key LIKE ? OR value LIKE ?) ORDER BY importance DESC, updated_at DESC LIMIT ?`,
       [userId, searchTerm, searchTerm, limit]
     );
-    return result.rows.map(r => rowToMemoryEntry(r as Record<string, unknown>));
+    return result.rows.map((r: Record<string, unknown>) => rowToMemoryEntry(r));
   }
 
   async updateUserProfile(profile: Partial<UserProfile> & { userId: string }): Promise<void> {
     const now = Date.now();
     const existing = await this.getUserProfile(profile.userId);
-    const db = getClient();
+    const db = await getClient();
 
     const username = profile.username ?? '';
     const displayName = profile.displayName ?? username;
@@ -174,7 +174,7 @@ export class MemoryService {
   }
 
   async getUserProfile(userId: string): Promise<UserProfile | null> {
-    const db = getClient();
+    const db = await getClient();
     const result = await db.execute(
       `SELECT user_id as userId, username, display_name as displayName, first_seen as firstSeen, last_seen as lastSeen, message_count as messageCount, favorite_topics as favoriteTopics, personality_notes as personalityNotes, relationship_level as relationshipLevel, relationship_points as relationshipPoints, relationship_max_points as relationshipMaxPoints, total_interactions as totalInteractions, last_interaction as lastInteraction FROM user_profiles WHERE user_id = ?`,
       [userId]
@@ -232,7 +232,7 @@ export class MemoryService {
 
     if (leveledUp) currentMaxPoints = newMaxPoints;
 
-    const db = getClient();
+    const db = await getClient();
     await db.execute(
       `UPDATE user_profiles SET relationship_level = ?, relationship_points = ?, relationship_max_points = ?, total_interactions = total_interactions + 1, last_interaction = ?, updated_at = ? WHERE user_id = ?`,
       [newLevel, currentPoints, newMaxPoints, now, now, userId]
@@ -265,7 +265,7 @@ export class MemoryService {
   }
 
   async cleanupOldData(): Promise<{ conversations: number; memories: number }> {
-    const db = getClient();
+    const db = await getClient();
     const convResult = await db.execute(
       `DELETE FROM conversations WHERE id NOT IN (SELECT id FROM conversations ORDER BY timestamp DESC LIMIT ?)`,
       [config.memory.maxConversationHistory * 10]
@@ -279,7 +279,7 @@ export class MemoryService {
   }
 
   async getStats(): Promise<{ conversations: number; memories: number; users: number }> {
-    const db = getClient();
+    const db = await getClient();
     const [convResult, memResult, userResult] = await Promise.all([
       db.execute('SELECT COUNT(*) as count FROM conversations'),
       db.execute('SELECT COUNT(*) as count FROM memories'),

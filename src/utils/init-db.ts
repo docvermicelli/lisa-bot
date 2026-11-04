@@ -1,23 +1,23 @@
-import { createClient } from '@libsql/client';
-import { createClient as createHttpClient } from '@libsql/client/http';
 import { config } from '../config';
 import { logger } from './logger';
 
 const log = logger.child({ module: 'db:init' });
 
-let client: ReturnType<typeof createClient> | ReturnType<typeof createHttpClient> | null = null;
+let client: any = null;
 
-function getClient() {
+async function getClient() {
   if (!client) {
     if (config.memory.tursoUrl && config.memory.tursoAuthToken) {
       // Remote Turso - use HTTP client (no native binary needed, works on all platforms)
-      client = createHttpClient({
+      const { createClient } = await import('@libsql/client/http');
+      client = createClient({
         url: config.memory.tursoUrl,
         authToken: config.memory.tursoAuthToken,
       });
       log.info('Connected to Turso database via HTTP');
     } else {
-      // Local SQLite file (libsql supports file: protocol)
+      // Local SQLite file - use dynamic import to avoid loading on unsupported platforms
+      const { createClient } = await import('@libsql/client');
       client = createClient({
         url: `file:${config.memory.dbPath}`,
       });
@@ -35,7 +35,7 @@ export function closeDatabase(): void {
 }
 
 export async function initializeDatabase(): Promise<void> {
-  const db = getClient();
+  const db = await getClient();
 
   // Only configure pragmas for local SQLite
   if (!config.memory.tursoUrl) {
@@ -115,7 +115,7 @@ export async function initializeDatabase(): Promise<void> {
   log.info('Database tables initialized');
 }
 
-export function getDatabase() {
+export async function getDatabase() {
   return getClient();
 }
 
