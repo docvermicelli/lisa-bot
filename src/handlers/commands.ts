@@ -125,7 +125,7 @@ export async function handleSlashCommand(interaction: ChatInputCommandInteractio
       await interaction.editReply({ embeds: [embed] });
       log.info({ userId, username, level, points, percentage }, 'Relationship meter displayed');
     } catch (error) {
-      log.error({ error }, 'Slash command failed');
+      log.error({ error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined }, 'Slash command failed');
       await interaction.editReply({
         content: 'Something went wrong. Try again in a moment.',
       });
