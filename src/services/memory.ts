@@ -1,4 +1,5 @@
 import { createClient, Client } from '@libsql/client';
+import { createClient as createHttpClient, Client as HttpClient } from '@libsql/client/http';
 import { config } from '../config';
 import { logger } from '../utils/logger';
 import type {
@@ -11,17 +12,19 @@ import type {
 
 const log = logger.child({ module: 'memory' });
 
-let client: Client | null = null;
+let client: Client | HttpClient | null = null;
 
-function getClient(): Client {
+function getClient(): Client | HttpClient {
   if (!client) {
     if (config.memory.tursoUrl && config.memory.tursoAuthToken) {
-      client = createClient({
+      // Remote Turso - use HTTP client (no native binary needed, works on all platforms including Termux ARM64)
+      client = createHttpClient({
         url: config.memory.tursoUrl,
         authToken: config.memory.tursoAuthToken,
       });
-      log.info('Connected to Turso database');
+      log.info('Connected to Turso database via HTTP');
     } else {
+      // Local SQLite file
       client = createClient({
         url: `file:${config.memory.dbPath}`,
       });

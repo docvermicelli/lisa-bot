@@ -1,20 +1,23 @@
 import { createClient } from '@libsql/client';
+import { createClient as createHttpClient } from '@libsql/client/http';
 import { config } from '../config';
 import { logger } from './logger';
 
 const log = logger.child({ module: 'db:init' });
 
-let client: ReturnType<typeof createClient> | null = null;
+let client: ReturnType<typeof createClient> | ReturnType<typeof createHttpClient> | null = null;
 
 function getClient() {
   if (!client) {
     if (config.memory.tursoUrl && config.memory.tursoAuthToken) {
-      client = createClient({
+      // Remote Turso - use HTTP client (no native binary needed, works on all platforms)
+      client = createHttpClient({
         url: config.memory.tursoUrl,
         authToken: config.memory.tursoAuthToken,
       });
-      log.info('Connected to Turso database');
+      log.info('Connected to Turso database via HTTP');
     } else {
+      // Local SQLite file (libsql supports file: protocol)
       client = createClient({
         url: `file:${config.memory.dbPath}`,
       });
@@ -34,6 +37,7 @@ export function closeDatabase(): void {
 export async function initializeDatabase(): Promise<void> {
   const db = getClient();
 
+  // Only configure pragmas for local SQLite
   if (!config.memory.tursoUrl) {
     await db.execute('PRAGMA journal_mode = WAL');
     await db.execute('PRAGMA synchronous = NORMAL');
@@ -43,8 +47,7 @@ export async function initializeDatabase(): Promise<void> {
     log.info('Database pragmas configured');
   }
 
-  // Use executeMultiple for Turso (doesn't support multi-statement in single execute)
-  const schema = `
+  await db.executeMultiple(`
     CREATE TABLE IF NOT EXISTS conversations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id TEXT NOT NULL,
@@ -107,9 +110,7 @@ export async function initializeDatabase(): Promise<void> {
 
     INSERT OR IGNORE INTO bot_stats (id, uptime_start, updated_at)
     VALUES (1, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000);
-  `;
-
-  await db.executeMultiple(schema);
+  `);
 
   log.info('Database tables initialized');
 }
