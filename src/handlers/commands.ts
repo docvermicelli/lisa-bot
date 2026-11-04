@@ -2,6 +2,7 @@ import {
   ChatInputCommandInteraction,
   EmbedBuilder,
   Colors,
+  MessageFlags,
 } from 'discord.js';
 import { config } from '../config';
 import { logger } from '../utils/logger';
@@ -19,13 +20,13 @@ export async function handleSlashCommand(interaction: ChatInputCommandInteractio
     if (guildId !== config.discord.guildId || channelId !== config.discord.channelId) {
       await interaction.reply({
         content: 'This command only works in the designated channel.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
       return;
     }
 
     // Defer reply immediately (buys up to 15 min)
-    await interaction.deferReply({ ephemeral: true });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     try {
       const userId = user.id;
@@ -125,7 +126,9 @@ export async function handleSlashCommand(interaction: ChatInputCommandInteractio
       await interaction.editReply({ embeds: [embed] });
       log.info({ userId, username, level, points, percentage }, 'Relationship meter displayed');
     } catch (error) {
-      log.error({ error: error instanceof Error ? error.message : String(error), stack: error instanceof Error ? error.stack : undefined }, 'Slash command failed');
+      const errMsg = error instanceof Error ? error.message : String(error);
+      const errStack = error instanceof Error ? error.stack : undefined;
+      log.error({ error: errMsg, stack: errStack }, 'Slash command failed');
       await interaction.editReply({
         content: 'Something went wrong. Try again in a moment.',
       });
