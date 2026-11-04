@@ -4,7 +4,6 @@ exports.handleReady = handleReady;
 exports.handleDisconnect = handleDisconnect;
 exports.handleReconnecting = handleReconnecting;
 exports.handleError = handleError;
-const discord_js_1 = require("discord.js");
 const config_1 = require("../config");
 const logger_1 = require("../utils/logger");
 const ollama_1 = require("../services/ollama");
@@ -43,13 +42,8 @@ async function handleReady(client) {
     else {
         log.warn({ guildId: config_1.config.discord.guildId }, 'Target guild not found');
     }
-    client.user?.setPresence({
-        activities: [{
-                name: `with Shokat 💕`,
-                type: discord_js_1.ActivityType.Playing,
-            }],
-        status: 'online',
-    });
+    // No presence/status — she's not "playing" anything. She's just here.
+    client.user?.setStatus('online');
     log.info('Bot ready and online!');
 }
 async function handleDisconnect() {

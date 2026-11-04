@@ -1,4 +1,4 @@
-import { Client, ActivityType } from 'discord.js';
+import { Client } from 'discord.js';
 import { config } from '../config';
 import { logger } from '../utils/logger';
 import { ollamaService } from '../services/ollama';
@@ -42,13 +42,8 @@ export async function handleReady(client: Client): Promise<void> {
     log.warn({ guildId: config.discord.guildId }, 'Target guild not found');
   }
 
-  client.user?.setPresence({
-    activities: [{
-      name: `with Shokat 💕`,
-      type: ActivityType.Playing,
-    }],
-    status: 'online',
-  });
+  // No presence/status — she's not "playing" anything. She's just here.
+  client.user?.setStatus('online');
 
   log.info('Bot ready and online!');
 }
