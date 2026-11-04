@@ -23,7 +23,6 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@libsql/client": "^0.18.0",
     "better-sqlite3": "^13.0.3",
     "discord.js": "^14.15.3",
     "dotenv": "^16.4.5",

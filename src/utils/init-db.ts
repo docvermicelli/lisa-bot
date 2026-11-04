@@ -3,51 +3,48 @@ import { logger } from './logger';
 
 const log = logger.child({ module: 'db:init' });
 
-let client: any = null;
+const TURSO_URL = config.memory.tursoUrl?.replace('libsql://', 'https://')?.replace('.turso.io', '.turso.io/v2/pipeline');
+const TURSO_TOKEN = config.memory.tursoAuthToken;
 
-async function getClient() {
-  if (!client) {
-    if (config.memory.tursoUrl && config.memory.tursoAuthToken) {
-      // Remote Turso - use HTTP client (no native binary needed, works on all platforms)
-      const { createClient } = await import('@libsql/client/http');
-      client = createClient({
-        url: config.memory.tursoUrl,
-        authToken: config.memory.tursoAuthToken,
-      });
-      log.info('Connected to Turso database via HTTP');
-    } else {
-      // Local SQLite file - use dynamic import to avoid loading on unsupported platforms
-      const { createClient } = await import('@libsql/client');
-      client = createClient({
-        url: `file:${config.memory.dbPath}`,
-      });
-      log.info({ path: config.memory.dbPath }, 'Connected to local SQLite database');
-    }
+async function tursoExecute(sql: string, args: any[] = []): Promise<any> {
+  if (!TURSO_URL || !TURSO_TOKEN) {
+    throw new Error('Turso not configured');
   }
-  return client;
+  const res = await fetch(TURSO_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${TURSO_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      requests: [{ type: 'execute', stmt: { sql, args } }]
+    }),
+  });
+  const data: any = await res.json();
+  if (data.results?.[0]?.error) {
+    throw new Error(data.results[0].error.message);
+  }
+  return data.results?.[0]?.response || { rows: [], rowsAffected: 0, lastInsertRowid: null };
+}
+
+async function tursoExecuteMultiple(sql: string): Promise<void> {
+  const statements = sql.split(';').filter(s => s.trim());
+  for (const stmt of statements) {
+    await tursoExecute(stmt.trim());
+  }
 }
 
 export function closeDatabase(): void {
-  if (client) {
-    client.close();
-    client = null;
-  }
+  // No-op for REST API
 }
 
 export async function initializeDatabase(): Promise<void> {
-  const db = await getClient();
-
-  // Only configure pragmas for local SQLite
-  if (!config.memory.tursoUrl) {
-    await db.execute('PRAGMA journal_mode = WAL');
-    await db.execute('PRAGMA synchronous = NORMAL');
-    await db.execute('PRAGMA cache_size = -32768');
-    await db.execute('PRAGMA temp_store = MEMORY');
-    await db.execute('PRAGMA mmap_size = 268435456');
-    log.info('Database pragmas configured');
+  if (!config.memory.tursoUrl || !config.memory.tursoAuthToken) {
+    log.warn('Turso not configured, skipping remote DB init');
+    return;
   }
 
-  await db.executeMultiple(`
+  await tursoExecuteMultiple(`
     CREATE TABLE IF NOT EXISTS conversations (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id TEXT NOT NULL,
@@ -112,11 +109,11 @@ export async function initializeDatabase(): Promise<void> {
     VALUES (1, strftime('%s', 'now') * 1000, strftime('%s', 'now') * 1000);
   `);
 
-  log.info('Database tables initialized');
+  log.info('Database tables initialized via Turso REST API');
 }
 
-export async function getDatabase() {
-  return getClient();
+export function getDatabase() {
+  return { execute: tursoExecute };
 }
 
 const isMainModule = process.argv[1] && process.argv[1].endsWith('init-db.ts') ||
