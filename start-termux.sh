@@ -21,24 +21,35 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
+# Read USE_GROQ from .env
+USE_GROQ=$(grep "^USE_GROQ=" .env | cut -d'=' -f2 | tr -d ' ' | tr '[:upper:]' '[:lower:]')
+USE_GROQ=${USE_GROQ:-false}
+
 # Increase file descriptor limit
 ulimit -n 4096
 
-# Check if Ollama is running
-if ! curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
-    echo "⚠️  Ollama not detected, starting..."
-    ollama serve > /dev/null 2>&1 &
-    OLLAMA_PID=$!
-    sleep 5
-    echo "   Ollama started (PID: $OLLAMA_PID)"
-fi
+# Only start Ollama if NOT using Groq
+if [ "$USE_GROQ" != "true" ]; then
+    echo "🔧 Using local Ollama (USE_GROQ=false)..."
 
-# Check if model exists
-MODEL=$(grep OLLAMA_MODEL .env | cut -d'=' -f2 | tr -d ' ' || echo "llama3.1:8b")
-if ! ollama list | grep -q "$MODEL"; then
-    echo "📥 Model '$MODEL' not found, pulling (this may take a while)..."
-    echo "   Keep Termux awake! Don't lock screen."
-    ollama pull "$MODEL"
+    # Check if Ollama is running
+    if ! curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
+        echo "⚠️  Ollama not detected, starting..."
+        ollama serve > /dev/null 2>&1 &
+        OLLAMA_PID=$!
+        sleep 5
+        echo "   Ollama started (PID: $OLLAMA_PID)"
+    fi
+
+    # Check if model exists
+    MODEL=$(grep OLLAMA_MODEL .env | cut -d'=' -f2 | tr -d ' ' || echo "llama3.1:8b")
+    if ! ollama list | grep -q "$MODEL"; then
+        echo "📥 Model '$MODEL' not found, pulling (this may take a while)..."
+        echo "   Keep Termux awake! Don't lock screen."
+        ollama pull "$MODEL"
+    fi
+else
+    echo "⚡ Using Groq API (USE_GROQ=true) — skipping Ollama"
 fi
 
 # Install deps if node_modules missing
